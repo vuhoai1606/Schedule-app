@@ -13,8 +13,6 @@ import model.CommonConstants;
 
 public class ScheduleAppGUI extends JFrame {
 
-//    private BigCalendarGUI calendarPanel; // Di chuyển thành biến instance
-
     public ScheduleAppGUI() {
         setTitle("Tên App");
         setSize(1440, 960);
@@ -54,7 +52,7 @@ public class ScheduleAppGUI extends JFrame {
         schedulePanel.setBounds(10, 360, 220, 70);
         schedulePanel.setLayout(null);
         // chữ
-        JLabel scheduleLabel = new JLabel("Schedules");
+        JLabel scheduleLabel = new JLabel("Schedule");
         scheduleLabel.setForeground(CommonConstants.PRIMARY_COLOR);
         scheduleLabel.setFont(new Font("Tahoma", Font.BOLD, 20));
         scheduleLabel.setBounds(100, 10, 100, 50);
@@ -107,7 +105,6 @@ public class ScheduleAppGUI extends JFrame {
         // ------------------------- Phần NỘI DUNG -------------------------
         JPanel contentPanel = new JPanel();
         contentPanel.setBackground(CommonConstants.PRIMARY_COLOR);
-//        contentPanel.setPreferredSize(new Dimension(1200, 960));
         contentPanel.setLayout(new BorderLayout());
 
         JPanel bigCalendarPanel = new JPanel();
@@ -131,7 +128,7 @@ public class ScheduleAppGUI extends JFrame {
         chatPanel.setLayout(null);
 
         CrudGUI crudGui = new CrudGUI();
-        crudGui.setBounds(0,0,310,960);
+        crudGui.setBounds(0, 0, 310, 960);
         Crud crudController = new Crud(crudGui);
         CrudPanel.add(crudGui);
 
@@ -140,6 +137,7 @@ public class ScheduleAppGUI extends JFrame {
         calendarPanel.setBounds(18, 70, 870, 850);
         BigCalendar bigCalendarController = new BigCalendar(calendarPanel, crudGui); // Thêm dòng này
         bigCalendarPanel.add(calendarPanel);
+        crudController.setCalendarController(bigCalendarController); // Liên kết Crud với BigCalendar
 
         // Today panel
         JPanel todayPanel = new JPanel();
@@ -159,7 +157,7 @@ public class ScheduleAppGUI extends JFrame {
         });
         bigCalendarPanel.add(todayPanel);
 
-        // Prev Pabel
+        // Prev Panel
         JPanel prev = new JPanel();
         prev.setBackground(CommonConstants.PRIMARY_COLOR);
         prev.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -197,9 +195,8 @@ public class ScheduleAppGUI extends JFrame {
 
         contentPanel.add(bigCalendarPanel, BorderLayout.WEST);
         contentPanel.add(CrudPanel, BorderLayout.EAST);
-        add(contentPanel, BorderLayout.EAST);
+        add(contentPanel, BorderLayout.CENTER); // Sửa lại BorderLayout.EAST thành CENTER
 
         // ==================================================================
-
     }
 }

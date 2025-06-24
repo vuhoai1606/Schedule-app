@@ -2,18 +2,13 @@ package view;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.time.*;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.WeekFields;
 import java.util.*;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import controller.BigCalendar;
-import dao.ScheduleDAO;
 import model.CommonConstants;
 
 public class BigCalendarGUI extends JPanel {
@@ -21,7 +16,7 @@ public class BigCalendarGUI extends JPanel {
     private JPanel daysPanel;
     private JLabel monthYearLabel;
     public final Map<LocalDate, DayCellPanel> dayCellMap = new HashMap<>();
-    private BigCalendar bigCalendar;
+    private BigCalendar controller;
 
     public BigCalendarGUI() {
         setLayout(new BorderLayout());
@@ -87,6 +82,10 @@ public class BigCalendarGUI extends JPanel {
         updateCalendar();
     }
 
+    public void setController(BigCalendar controller) {
+        this.controller = controller;
+    }
+
     public void updateCalendar() {
         daysPanel.removeAll();
         dayCellMap.clear();
@@ -101,7 +100,6 @@ public class BigCalendarGUI extends JPanel {
         LocalDate startDate = firstOfMonth.minusDays(offset);
 
         for (int week = 0; week < 6; week++) {
-            // Week number column
             LocalDate weekDate = startDate.plusDays(week * 7L);
             int weekNumber = weekDate.get(WeekFields.ISO.weekOfYear());
             gbc.gridx = 0;
@@ -120,71 +118,47 @@ public class BigCalendarGUI extends JPanel {
                 gbc.weightx = 1;
                 daysPanel.add(dayCell, gbc);
                 dayCellMap.put(date, dayCell);
+                dayCell.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mouseClicked(java.awt.event.MouseEvent e) {
+                        if (e.getClickCount() == 2 && controller != null) {
+                            controller.onDateDoubleClick(date);
+                        }
+                    }
+                });
             }
         }
 
         monthYearLabel.setText(currentYearMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.getDefault()) + " " + currentYearMonth.getYear());
 
-        // Yêu cầu BigCalendar cập nhật và vẽ schedules
-        if (bigCalendar != null) {
-            bigCalendar.updateSchedulesDisplay();
+        if (controller != null) {
+            controller.updateSchedulePanels();
         }
+
         revalidate();
         repaint();
     }
 
-    public void renderSchedules(List<ScheduleDAO.ScheduleData> schedules) {
-        for (Map.Entry<LocalDate, DayCellPanel> entry : dayCellMap.entrySet()) {
-            LocalDate date = entry.getKey();
-            DayCellPanel dayCell = entry.getValue();
+    public void renderSchedulePanel(LocalDate date, String title, String color, JPanel panel) {
+        DayCellPanel dayCell = dayCellMap.get(date);
+        if (dayCell != null) {
+            panel.setBackground(Color.decode(color));
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            JLabel titleLabel = new JLabel(title);
+            titleLabel.setForeground(Color.WHITE);
+            panel.add(titleLabel);
+            dayCell.add(panel);
+            revalidate();
+            repaint();
+        }
+    }
+
+    public void clearSchedulePanels(LocalDate date) {
+        DayCellPanel dayCell = dayCellMap.get(date);
+        if (dayCell != null) {
             dayCell.removeAll();
-
-            // Lọc và hiển thị các schedule cho ngày hiện tại
-            List<ScheduleDAO.ScheduleData> daySchedules = schedules.stream()
-                    .filter(s -> !s.startTime.toLocalDate().isAfter(date) && !s.endTime.toLocalDate().isBefore(date))
-                    .collect(Collectors.toCollection(ArrayList::new)); // Sử dụng ArrayList thay vì toList()
-            daySchedules.sort(Comparator.comparing(s -> s.startTime));
-
-            int yOffset = 20;
-            for (ScheduleDAO.ScheduleData schedule : daySchedules) {
-                JPanel schedulePanel = new JPanel(null);
-                LocalDate startDate = schedule.startTime.toLocalDate();
-                LocalDate endDate = schedule.endTime.toLocalDate();
-                int daysSpan = (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
-
-                if (startDate.isEqual(endDate) || date.equals(startDate)) {
-                    schedulePanel.setBounds(5, yOffset, 80, 20);
-                    schedulePanel.setOpaque(true);
-                    schedulePanel.setBackground(new Color(0, 0, 0, 0)); // Transparent background
-                } else {
-                    schedulePanel.setBounds(5, yOffset, 80 * daysSpan, 20);
-                    schedulePanel.setOpaque(true);
-                    schedulePanel.setBackground(Color.WHITE); // Multi-day event background
-                }
-
-                JLabel titleLabel = new JLabel(schedule.title);
-                titleLabel.setForeground(Color.decode(schedule.color));
-                titleLabel.setBounds(0, 0, 80 * daysSpan, 20);
-                schedulePanel.add(titleLabel);
-
-                final int finalYOffset = yOffset;
-                schedulePanel.addMouseListener(new MouseAdapter() {
-                    @Override
-                    public void mouseClicked(MouseEvent e) {
-                        if (e.getClickCount() == 2) {
-                            // Gửi sự kiện click lên BigCalendar để xử lý
-                            if (bigCalendar != null) {
-                                bigCalendar.onScheduleClick(schedule, schedulePanel, titleLabel);
-                            }
-                        }
-                    }
-                });
-
-                dayCell.add(schedulePanel);
-                yOffset += 25; // Space between panels
-            }
-            dayCell.revalidate();
-            dayCell.repaint();
+            revalidate();
+            repaint();
         }
     }
 
@@ -194,7 +168,7 @@ public class BigCalendarGUI extends JPanel {
 
         public DayCellPanel(LocalDate date, YearMonth currentMonth) {
             this.date = date;
-            setLayout(null);
+            setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));
             setBackground(CommonConstants.PRIMARY_COLOR);
             setBorder(BorderFactory.createLineBorder(Color.GRAY));
 
@@ -209,13 +183,11 @@ public class BigCalendarGUI extends JPanel {
             JLabel dayLabel = new JLabel(dayText);
             dayLabel.setFont(new Font("Tahoma", Font.PLAIN, 14));
             dayLabel.setForeground(isCurrentMonth ? Color.WHITE : Color.LIGHT_GRAY);
-            dayLabel.setBounds(78, 2, 40, 15);
             dayLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
             if (isToday) {
                 dayLabel.setOpaque(true);
                 dayLabel.setBackground(Color.decode("#f15550"));
-                dayLabel.setBounds(100, 2, 18, 15);
                 dayLabel.setForeground(Color.WHITE);
             }
             add(dayLabel);
@@ -228,10 +200,5 @@ public class BigCalendarGUI extends JPanel {
         public boolean isCurrentMonth() {
             return isCurrentMonth;
         }
-    }
-
-    // Setter để gán BigCalendar (nếu cần)
-    public void setBigCalendarController(BigCalendar controller) {
-        this.bigCalendar = controller;
     }
 }
